@@ -1,0 +1,1 @@
+uvicorn appPersonas.main:app  --reload --host 192.168.88.250 --port 8081
