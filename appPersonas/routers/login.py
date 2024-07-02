@@ -23,7 +23,7 @@ def get_db_user():
         db.close()
 
 # Configuración JWT
-SECRET_KEY = "12345"  # ¡Cambia esto por una clave secreta fuerte!
+SECRET_KEY = "123456"  # ¡Cambia esto por una clave secreta fuerte!
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

@@ -424,23 +424,6 @@ def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_db_use
 
 from fastapi import HTTPException
 
-@app_rout_usuarios.post("/pi003TO1_perfil_add/")
-def api30a_alerv_add(usuario: PR_Perfil_model, db: Session = Depends(get_db_user)):
-    try:
-        usuario_db = PR_Perfil_base(**usuario.dict())
-        db.add(usuario_db)
-        # usuario_db.usu_dt_fecre_pers = datetime.now()
-        db.commit()
-        db.refresh(usuario_db)
-        return usuario_db
-
-    except Exception as e:
-        # En caso de otros errores, levanta una excepción HTTP con código de estado 500 (Internal Server Error)
-        error_detail = {"error": "Error al agregar usuario", "error_message": str(e)}
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
-
-from fastapi import HTTPException
-
 # ***** ACTUALIZAR usuario **********
 @app_rout_usuarios.put("/pi005TO1_usuario_update/{usuario_id}", response_model=PR_Usuario_model)
 def update_usuario(usuario_id: int, usuarios: PR_Usuario_model, db: Session = Depends(get_db_user)):
@@ -504,7 +487,24 @@ def api30a_alerv_add(rol: PR_Rol_model, db: Session = Depends(get_db_user)):
         error_detail = {"error": "Error al agregar rol", "error_message": str(e)}
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
 
+
+@app_rout_rol.post("/pi003TO1_perfil_add/")
+def api30a_alerv_add(perfil: PR_Perfil_model, db: Session = Depends(get_db_user)):
+    try:
+        perfil_db = PR_Perfil_base(**perfil.dict())
+        db.add(perfil_db)
+        db.commit()
+        db.refresh(perfil_db)
+        return perfil_db
+
+    except Exception as e:
+        # En caso de otros errores, levanta una excepción HTTP con código de estado 500 (Internal Server Error)
+        error_detail = {"error": "Error al agregar rol", "error_message": str(e)}
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
+
+
 from fastapi import HTTPException
+
 
 # Obtener perfil por ID
 @app_rout_rol.get("/perfiles/{perfil_id}", response_model=PR_Perfil_model)
@@ -521,220 +521,100 @@ def get_rol(rol_id: int, db: Session = Depends(get_db_user)):
     if not rol:
         raise HTTPException(status_code=404, detail="Rol no encontrado")
     return rol
-
-# @app_rout_rol.get("/roles/", response_model=List[PR_Rol_model])
-# async def list_usuario(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
-#     try:
-#         usuario = db.query(PR_Rol_base).order_by(PR_Rol_base.PR_Usu_rol_id) \
-#                                                 .offset(skip) \
-#                                                 .limit(limit) \
-#                                                 .all()
-#         return usuario
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
-#     finally:
-#         db.close()
-
-
-
-
-
-
-#--Anterior Codigo----------------------
-
-# # ***** LISTADO POR ID **********
-# @app_rout_usuarios.get("/pi001TO1_usuario_list_id/{usuario_id}", response_model=PR_Usuario_model)
-# def read_usuario_by_id(usuario_id: int, db: Session = Depends(get_db_user)):
-#     usuario = db.query(PR_Usuario_base) \
-#              .filter(PR_Usuario_base.PR_Usu_in_id == usuario_id) \
-#              .first()
-#     if not usuario:
-#         raise HTTPException(status_code=404, detail="Detalle de usuario no Ubicada")
-#     return usuario
-
-
-# # ***** LISTADO GENERAL POR PAGINADO  **********
-# @app_rout_usuarios.get("/pi002TO1_usuario_listget/", response_model=List[PR_Usuario_model])
-# async def list_usuario(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
-#     try:
-#         usuario = db.query(PR_Usuario_base).order_by(PR_Usuario_base.PR_Usu_in_id) \
-#                                                 .offset(skip) \
-#                                                 .limit(limit) \
-#                                                 .all()
-#         return usuario
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
-#     finally:
-#         db.close()
-
-
-# # Configuración JWT
-# SECRET_KEY = "123456"  
-# ALGORITHM = "HS256"
-# ACCESS_TOKEN_EXPIRE_MINUTES = 3000000000000
-
-# # Esquema de autenticación OAuth2
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# # Contexto de encriptación de contraseñas
-# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") 
-
-# # Función para crear el token de acceso
-# def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-#     to_encode = data.copy()
-#     if expires_delta:
-#         expire = datetime.utcnow() + expires_delta
-#     else:
-#         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-#     to_encode.update({"exp": expire})
-#     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-#     return encoded_jwt
-
-# # Función para obtener el usuario actual a partir del token JWT
-# async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db_user)):
-#     credentials_exception = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED,
-#         detail="Could not validate credentials",
-#         headers={"WWW-Authenticate": "Bearer"},
-#     )
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         email: str = payload.get("sub")
-#         if email is None:
-#             raise credentials_exception
-#         token_data = TokenData(email=email)
-#     except JWTError:
-#         raise credentials_exception
-#     user = get_usuario_by_email(db, email=token_data.email)
-#     if user is None:
-#         raise credentials_exception
-#     return user
-
-
-# # ***** CREAR usuario  **********
-# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # Usamos bcrypt, un algoritmo seguro
-
-# @app_rout_usuarios.post("/pi003TO1_usuario_add/")
-# def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_current_user)):
-#     try:
-#         # Hashea la contraseña antes de guardarla
-#         hashed_password = pwd_context.hash(usuario.PR_Usu_ch_pass)  
-#         usuario.PR_Usu_ch_pass = hashed_password
-
-#         usuario_db = PR_Usuario_base(**usuario.dict())
-#         db.add(usuario_db)
-#         db.commit()
-#         db.refresh(usuario_db)
-
-#         return usuario_db
-
-#     except Exception as e:
-#         error_detail = {"error": "Error al agregar usuario", "error_message": str(e)}
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
-
-
-# from fastapi import HTTPException
-
-# @app_rout_usuarios.post("/pi003TO1_perfil_add/")
-# def api30a_alerv_add(usuario: PR_Perfil_model, db: Session = Depends(get_db_user)):
-#     try:
-#         usuario_db = PR_Perfil_base(**usuario.dict())
-#         db.add(usuario_db)
-#         # usuario_db.usu_dt_fecre_pers = datetime.now()
-#         db.commit()
-#         db.refresh(usuario_db)
-#         return usuario_db
-
-#     except Exception as e:
-#         # En caso de otros errores, levanta una excepción HTTP con código de estado 500 (Internal Server Error)
-#         error_detail = {"error": "Error al agregar usuario", "error_message": str(e)}
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
-
-# from fastapi import HTTPException
-
-# # ***** ACTUALIZAR usuario **********
-# @app_rout_usuarios.put("/pi005TO1_usuario_update/{usuario_id}", response_model=PR_Usuario_model)
-# def update_usuario(usuario_id: int, usuarios: PR_Usuario_model, db: Session = Depends(get_db_user)):
-#     try:
-#         # Buscar la usuario por su ID
-#         usuario_db = db.query(PR_Usuario_base).filter(
-#             PR_Usuario_base.PR_Usu_in_id == usuario_id
-#         ).first()
-
-#         if not usuario_db:
-#             raise HTTPException(status_code=404, detail="usuario no encontrada")
-
-#         # Actualizar los campos proporcionados en la solicitud
-#         for field, value in usuarios.dict(exclude_unset=True).items():
-#             setattr(usuario_db, field, value)
-
-#         # usuario_db. = datetime.now()
         
-#         # Guardar los cambios en la base de datos
-#         db.commit()
-#         db.refresh(usuario_db)
-
-#         return usuario_db
-
-#     except Exception as e:
-#         # En caso de errores, revertir los cambios y levantar una excepción HTTP
-#         db.rollback()
-#         error_detail = {"error": "Error al actualizar Usuario", "error_message": str(e)}
-#         raise HTTPException(status_code=500, detail=error_detail)
-
-#     finally:
-#         # Cerrar la conexión a la base de datos al finalizar
-#         db.close()
-
-
-# # ***** ELIMINAR USUARIO  **********
-# @app_rout_usuarios.delete("/pi004TO1_usuarios_delete/{usuarios_id}", response_model=dict)
-# def delete_usuario(usuarios_id: int, db: Session = Depends(get_db_user)):
-#     usuario_de = db.query(PR_Usuario_base).filter(PR_Usuario_base.PR_Usu_in_id == usuarios_id).first()
-#     if usuario_de:
         
-#         # usuario_de.usu_dt_fecdel_pers = datetime.now()
-#         db.commit()
-#         return {"message": "usuario eliminada "}
-#     raise HTTPException(status_code=404, detail="usuario no encontrada")
+@app_rout_rol.get("/roles_listget/", response_model=List[PR_Rol_model])
+async def list_rol(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
+    try:
+        rol = db.query(PR_Rol_base).order_by(PR_Rol_base.PR_Usu_rol_id) \
+                                                .offset(skip) \
+                                                .limit(limit) \
+                                                .all()
+        return rol
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+    finally:
+        db.close()
 
-# # ----------------------------------------------------------
+@app_rout_rol.get("/perfil_listget/", response_model=List[PR_Perfil_model])
+async def list_prefil(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
+    try:
+        rol = db.query(PR_Perfil_base).order_by(PR_Perfil_base.PR_Usu_perf_id) \
+                                                .offset(skip) \
+                                                .limit(limit) \
+                                                .all()
+        return rol
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+    finally:
+        db.close()
+        
+        
+@app_rout_rol.put("/roles_update/{rol_id}", response_model=PR_Rol_model)
+def update_rol(rol_id: int, roles: PR_Rol_model, db: Session = Depends(get_db_user)):
+    try:
+        # Buscar el rol por su ID
+        rol_db = db.query(PR_Rol_base).filter(
+            PR_Rol_base.PR_Usu_rol_id == rol_id
+        ).first()
 
-# # ***** CREAR ROL  **********
-# @app_rout_rol.post("/pi003TO1_rol_add/")
-# def api30a_alerv_add(rol: PR_Rol_model, db: Session = Depends(get_db_user)):
-#     try:
-#         rol_db = PR_Rol_base(**rol.dict())
-#         db.add(rol_db)
-#         db.commit()
-#         db.refresh(rol_db)
-#         return rol_db
+        if not rol_db:
+            raise HTTPException(status_code=404, detail="rol no encontrada")
 
-#     except Exception as e:
-#         # En caso de otros errores, levanta una excepción HTTP con código de estado 500 (Internal Server Error)
-#         error_detail = {"error": "Error al agregar rol", "error_message": str(e)}
-#         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
+        # Actualizar los campos proporcionados en la solicitud
+        for field, value in roles.dict(exclude_unset=True).items():
+            setattr(rol_db, field, value)
 
-# from fastapi import HTTPException
+        # usuario_db. = datetime.now()
+        
+        # Guardar los cambios en la base de datos
+        db.commit()
+        db.refresh(rol_db)
 
+        return rol_db
 
-# # @app_rout_usuarios.post("/login...")
-# # def login(usuario: login_bm, db: Session = Depends(get_db_user)):
-# #     # Obtener el usuario desde la base de datos
-# #     usuario_db = db.query(PR_Usuario_base).filter(PR_Usuario_base.PR_Usu_ch_nomb == usuario.email).first()
-    
-# #     if not usuario_db:
-# #         raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
+    except Exception as e:
+        # En caso de errores, revertir los cambios y levantar una excepción HTTP
+        db.rollback()
+        error_detail = {"error": "Error al actualizar Usuario", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
 
-# #     # Verificar la contraseña utilizando el modelo del usuario de la base de datos (PR_Usuario)
-# #     if not pwd_context.verify(usuario.passs, usuario_db.PR_Usu_ch_pass):  # Corrección aquí
-# #         raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
+    finally:
+        # Cerrar la conexión a la base de datos al finalizar
+        db.close()
+        
+        
+@app_rout_rol.put("/perfiles_update/{perfil_id}", response_model=PR_Perfil_model)
+def update_perfil(perfil_id: int, perfiles: PR_Perfil_model, db: Session = Depends(get_db_user)):
+    try:
+        # Buscar el rol por su ID
+        perfil_db = db.query(PR_Perfil_base).filter(
+            PR_Perfil_base.PR_Usu_perf_id == perfil_id
+        ).first()
 
-# #     # Crear un token JWT para el usuario
-# #     access_token = create_access_token(data={"sub": usuario.email})
-# #     response_data = {"access_token": access_token, "token_type": "bearer"}
+        if not perfil_db:
+            raise HTTPException(status_code=404, detail="rol no encontrada")
 
-# #     return {"mensaje": "Login exitoso", "data": jsonable_encoder(response_data)}
+        # Actualizar los campos proporcionados en la solicitud
+        for field, value in perfiles.dict(exclude_unset=True).items():
+            setattr(perfil_db, field, value)
 
+        # usuario_db. = datetime.now()
+        
+        # Guardar los cambios en la base de datos
+        db.commit()
+        db.refresh(perfil_db)
+
+        return perfil_db
+
+    except Exception as e:
+        # En caso de errores, revertir los cambios y levantar una excepción HTTP
+        db.rollback()
+        error_detail = {"error": "Error al actualizar Usuario", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
+
+    finally:
+        # Cerrar la conexión a la base de datos al finalizar
+        db.close()

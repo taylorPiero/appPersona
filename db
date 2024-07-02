@@ -1,0 +1,137 @@
+--base de datos de Personas---
+
+CREATE DATABASE DB_PRACTICAS_PERSONA;
+GO
+
+USE DB_PRACTICAS_PERSONA;
+GO
+
+-- Creación de la tabla PR_Detalle_Persona
+CREATE TABLE PR_Detalle_Persona (
+    PR_DetP_id INT PRIMARY KEY IDENTITY,
+    PR_DetP_ch_tel VARCHAR(9) NOT NULL,
+    PR_DetP_ch_email VARCHAR(40) NOT NULL,
+	PR_DetP_ch_sexo VARCHAR(1) NOT NULL,
+    estado BIT NOT NULL DEFAULT 1,
+    date_create DATETIME NOT NULL,
+    date_update DATETIME NOT NULL,
+    date_delete DATETIME,
+	FK_PR_Pers INT FOREIGN KEY REFERENCES PR_Persona(PR_Per_in_id),
+	FK_PR_Paramet_Pers INT FOREIGN KEY REFERENCES PR_Parametro_Persona(PR_Par_in_id),
+    
+);
+
+
+CREATE TABLE PR_Parametro_Persona (
+    PR_Par_in_id INT PRIMARY KEY IDENTITY,
+    PR_Par_ch_nomb VARCHAR(25) NOT NULL,
+    PR_Par_ch_descrip VARCHAR(25) NOT NULL,
+    estado BIT NOT NULL DEFAULT 1,
+    date_create DATETIME NOT NULL,
+    date_update DATETIME NOT NULL,
+    date_delete DATETIME,
+	
+);
+
+
+-- Creación de la tabla PR_Persona
+CREATE TABLE PR_Persona (
+    PR_Per_in_id INT PRIMARY KEY IDENTITY,
+    PR_Per_ch_nomb VARCHAR(50) NOT NULL,
+    PR_Per_ch_apeMat VARCHAR(25) NOT NULL,
+    PR_Per_ch_apePat VARCHAR(25) NOT NULL,
+    PR_Per_dt_nac DATE,
+    PR_Per_ch_doc VARCHAR(8) NOT NULL,
+    estado BIT NOT NULL DEFAULT 1,
+    date_create DATETIME NOT NULL,
+    date_update DATETIME NOT NULL,
+    date_delete DATETIME,
+	--FK_PR_Detal_Pers INT FOREIGN KEY REFERENCES PR_Detalle_Persona(PR_DetP_id),
+);
+
+
+-- base de datos de Mensajes-----------
+CREATE DATABASE DB_PRACTICAS_MENSAJE;
+GO
+
+USE DB_PRACTICAS_MENSAJE;
+GO
+-- Crear la tabla 'TMensaje'
+CREATE TABLE PR_TMensaje (
+    PR_TMens_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_TMens_ch_nombre VARCHAR(50)
+);
+CREATE TABLE PR_DetalleMensaje (
+    PR_DetMen_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_DetMen_ch_nomb VARCHAR(50),
+    PR_Per_fk INT,
+    TipoMen_fk INT,
+    FOREIGN KEY (TipoMen_fk) REFERENCES Pr_TMensaje(Pr_TMens_id)
+);
+
+-- Crear la tabla 'Archivos'
+CREATE TABLE Pr_Archivos (
+    PR_Arch_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_Arch_ch_nombre VARCHAR(50),
+    PR_Per_fk INT,
+    PR_TipoArch_fk INT,
+    PR_NombreArchivo NVARCHAR(50),
+);
+
+
+-- base de datos de Grupos--
+
+CREATE DATABASE DB_PRACTICAS_GRUPOS;
+GO
+
+USE DB_PRACTICAS_GRUPOS;
+GO
+
+CREATE TABLE PR_grupos (
+    PR_Gru_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_Gru_ch_nomb VARCHAR(50),
+    PR_Gru_per_fk INT
+);
+
+-- Crear la tabla "Segmentos"
+CREATE TABLE PR_segmentos (
+    PR_Seg_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_Seg_ch_nomb VARCHAR(50),
+    PR_Seg_Gru_idfk INT
+	FOREIGN KEY (PR_Seg_Gru_idfk) REFERENCES PR_grupos(PR_Gru_id)
+);
+
+--- base de datos de Usuario--
+
+CREATE DATABASE DB_PRACTICAS_USUARIO;
+GO
+
+USE DB_PRACTICAS_USUARIO;
+GO
+
+-- Creación de la tabla 'Rol'
+CREATE TABLE PR_Rol (
+    PR_Usu_rol_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_Usu_rol_ch_nomb VARCHAR(25) NOT NULL
+);
+
+-- Creación de la tabla 'Perfil'
+CREATE TABLE PR_Perfil (
+    PR_Usu_perf_id INT PRIMARY KEY IDENTITY(1,1),
+    PR_Usu_perf_ch_nomb VARCHAR(25) NOT NULL
+);
+
+-- Creación de la tabla 'User'
+CREATE TABLE PR_Usuario (
+    PR_Usu_in_id INT PRIMARY KEY IDENTITY,
+    PR_Usu_ch_nomb VARCHAR(25) NOT NULL,
+    PR_Usu_ch_pass VARCHAR(80) NOT NULL,
+    PR_Usu_perid_fk INT, -- Esta columna debería referenciar a una tabla 'Personas' que no está definida en este esquema
+    PR_Usu_rolid_fk INT FOREIGN KEY REFERENCES PR_Rol(PR_Usu_rol_id), -- Llave foránea que referencia a la tabla 'Rol'
+    PR_Usu_perfid_fk INT FOREIGN KEY REFERENCES PR_Perfil(PR_Usu_perf_id) -- Llave foránea que referencia a la tabla 'Perfil'
+
+);
+
+
+
+
