@@ -53,6 +53,7 @@ app.add_middleware(
     allow_headers=headers,
     
 )
+
 app.include_router(logins, prefix="/auth")
 app.include_router(app_email)
 app.include_router(appgestion)

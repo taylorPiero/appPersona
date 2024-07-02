@@ -75,7 +75,7 @@ CREATE TABLE Pr_Archivos (
     PR_Arch_ch_nombre VARCHAR(50),
     PR_Per_fk INT,
     PR_TipoArch_fk INT,
-    PR_NombreArchivo NVARCHAR(50),
+    PR_NombreArchivo VARCHAR(50),
 );
 
 
@@ -129,7 +129,7 @@ CREATE TABLE PR_Usuario (
     PR_Usu_perid_fk INT, -- Esta columna debería referenciar a una tabla 'Personas' que no está definida en este esquema
     PR_Usu_rolid_fk INT FOREIGN KEY REFERENCES PR_Rol(PR_Usu_rol_id), -- Llave foránea que referencia a la tabla 'Rol'
     PR_Usu_perfid_fk INT FOREIGN KEY REFERENCES PR_Perfil(PR_Usu_perf_id) -- Llave foránea que referencia a la tabla 'Perfil'
-
+    estado BIT NOT NULL DEFAULT 1;
 );
 
 

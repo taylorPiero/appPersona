@@ -24,10 +24,8 @@ class PR_Persona_base(Base):
     date_create = Column(DateTime, nullable=False)
     date_update = Column(DateTime, nullable=False)
     date_delete = Column(DateTime)
-    # FK_PR_Detal_Pers = Column(Integer, ForeignKey('PR_Detalle_Persona.PR_DetP_id'))
-    # FK_PR_Paramet_Pers = Column(Integer, ForeignKey('PR_Parametro_Persona.PR_Par_in_id'))
-    # per_detalle_persona = relationship("PR_Detalle_Persona_base", backref="PR_Persona")
-    # per_parametro_persona = relationship("PR_Parametro_Persona_base", backref="PR_Persona")
+    per_detalle_persona = relationship("PR_Detalle_Persona_base", backref="PR_Persona_base",uselist=False)
+
     
 class PR_Detalle_Persona_base(Base):
     __tablename__ = 'PR_Detalle_Persona'
@@ -54,12 +52,14 @@ class PR_Parametro_Persona_base(Base):
     date_create = Column(DateTime, nullable=False)
     date_update = Column(DateTime, nullable=False)
     date_delete = Column(DateTime)
+    
 
 # Modelo para DB_PRACTICAS_USUARIO
 class PR_Rol_base(Base):
     __tablename__ = 'PR_Rol'
     PR_Usu_rol_id = Column(Integer, primary_key=True)
     PR_Usu_rol_ch_nomb = Column(String(25), nullable=False)
+    
 
 class PR_Perfil_base(Base):
     __tablename__ = 'PR_Perfil'
@@ -71,6 +71,7 @@ class PR_Usuario_base(Base):
     PR_Usu_in_id = Column(Integer, primary_key=True)
     PR_Usu_ch_nomb = Column(String(25), nullable=False)
     PR_Usu_ch_pass = Column(String(100), nullable=False)
+    estado = Column(Boolean, nullable=False, default=1)
     PR_Usu_perid_fk = Column(Integer)  # Debería referenciar a una tabla 'Personas' y llamar a email
     PR_Usu_rolid_fk = Column(Integer, ForeignKey('PR_Rol.PR_Usu_rol_id'))
     PR_Usu_perfid_fk = Column(Integer, ForeignKey('PR_Perfil.PR_Usu_perf_id'))

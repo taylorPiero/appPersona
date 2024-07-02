@@ -4,7 +4,7 @@ from click import FLOAT
 from sqlalchemy.exc import SQLAlchemyError,IntegrityError
 from fastapi import FastAPI, HTTPException,APIRouter,Depends,status, Form, BackgroundTasks, Request
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, MetaData,ForeignKey, Float,Numeric,func, Date
-from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship, joinedload
 from datetime import datetime, timedelta
 from typing import List,Dict,Optional
 from dotenv import load_dotenv
@@ -344,6 +344,60 @@ def delete_persona(personas_id: int, db: Session = Depends(get_db_pers)):
         raise HTTPException(status_code=500, detail=error_detail)
     finally:
         db.close()
+        
+@appTO1_rout_personas.get("/pi002T01_personas_listget_inactive/", response_model=List[PR_Persona_model])
+async def list_personas_inactive(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_pers)):
+    try:
+        # Consulta para obtener personas con estado inactivo (estado == 0)
+        personas = (
+            db.query(PR_Persona_base)
+            .filter(PR_Persona_base.estado == 0)
+            .options(joinedload(PR_Persona_base.per_detalle_persona))
+            .order_by(PR_Persona_base.PR_Per_in_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+        # Combinar los datos de personas y detalles en una lista de diccionarios
+        personas_con_detalles = []
+        for persona in personas:
+            detalle = persona.per_detalle_persona 
+            persona_dict = persona.__dict__
+            if detalle:
+                persona_dict.update(detalle.__dict__)
+
+            personas_con_detalles.append(persona_dict)
+
+        return personas_con_detalles
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+    finally:
+        db.close()
+        
+from sqlalchemy import update
+
+@appTO1_rout_personas.put("/pi002T01_personas_update_estado/", response_model=dict)
+async def update_personas_estado(personas_ids: List[int], db: Session = Depends(get_db_pers)):
+    try:
+        # Actualizar estado y fecha de actualización
+        db.execute(
+            update(PR_Persona_base)
+            .filter(PR_Persona_base.PR_Per_in_id.in_(personas_ids))
+            .values(estado=1, date_update=datetime.now())
+        )
+
+        db.commit()
+        return {"message": "Estado de personas actualizado"}
+
+    except Exception as e:
+        db.rollback()
+        error_detail = {"error": "Error al actualizar el estado de personas", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
+
+    finally:
+        db.close()
 
 @appTO1_rout_personas.delete("/pi004TO1_personasdetalle_delete/{detalle_id}", response_model=dict)
 def delete_persona_detalle(detalle_id: int, db: Session = Depends(get_db_pers)):
@@ -372,29 +426,27 @@ def delete_persona_detalle(detalle_id: int, db: Session = Depends(get_db_pers)):
 # ***** LISTADO POR ID **********
 @app_rout_usuarios.get("/pi001TO1_usuario_list_id/{usuario_id}", response_model=PR_Usuario_model)
 def read_usuario_by_id(usuario_id: int, db: Session = Depends(get_db_user)):
-    usuario = db.query(PR_Usuario_base) \
-             .filter(PR_Usuario_base.PR_Usu_in_id == usuario_id) \
-             .first()
+    usuario = db.query(PR_Usuario_base).filter(
+        PR_Usuario_base.PR_Usu_in_id == usuario_id,
+        PR_Usuario_base.estado == True
+    ).first()
     if not usuario:
-        raise HTTPException(status_code=404, detail="Detalle de usuario no Ubicada")
+        raise HTTPException(status_code=404, detail="Detalle de usuario no ubicado")
     return usuario
 
-
-# ***** LISTADO GENERAL POR PAGINADO  **********
+# ***** LISTADO GENERAL POR PAGINADO **********
 @app_rout_usuarios.get("/pi002TO1_usuario_listget/", response_model=List[PR_Usuario_model])
 async def list_usuario(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
     try:
-        usuario = db.query(PR_Usuario_base).order_by(PR_Usuario_base.PR_Usu_in_id) \
-                                                .offset(skip) \
-                                                .limit(limit) \
-                                                .all()
-        return usuario
+        usuarios = db.query(PR_Usuario_base).filter(
+            PR_Usuario_base.estado == True
+        ).order_by(PR_Usuario_base.PR_Usu_in_id).offset(skip).limit(limit).all()
+        return usuarios
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
     finally:
         db.close()
-
 
 # ***** CREAR usuario  **********
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -404,8 +456,24 @@ class User(BaseModel):
     roles: List[str] = []
 
 # Nuevo endpoint para agregar usuarios
+# ***** AGREGAR USUARIO **********
 @app_rout_usuarios.post("/pi003TO1_usuario_add/")
 def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_db_user), current_user: User = Depends(get_current_user)):
+    try:
+        hashed_password = pwd_context.hash(usuario.PR_Usu_ch_pass)
+        usuario.PR_Usu_ch_pass = hashed_password
+
+        usuario_db = PR_Usuario_base(**usuario.dict())
+        db.add(usuario_db)
+        db.commit()
+        db.refresh(usuario_db)
+
+        return usuario_db
+
+    except Exception as e:
+        error_detail = {"error": "Error al agregar usuario", "error_message": str(e)}
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
+    
     try:
         hashed_password = pwd_context.hash(usuario.PR_Usu_ch_pass)
         usuario.PR_Usu_ch_pass = hashed_password
@@ -424,24 +492,23 @@ def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_db_use
 
 from fastapi import HTTPException
 
-# ***** ACTUALIZAR usuario **********
+# ***** ACTUALIZAR USUARIO **********
 @app_rout_usuarios.put("/pi005TO1_usuario_update/{usuario_id}", response_model=PR_Usuario_model)
 def update_usuario(usuario_id: int, usuarios: PR_Usuario_model, db: Session = Depends(get_db_user)):
     try:
-        # Buscar la usuario por su ID
+        # Buscar el usuario por su ID
         usuario_db = db.query(PR_Usuario_base).filter(
-            PR_Usuario_base.PR_Usu_in_id == usuario_id
+            PR_Usuario_base.PR_Usu_in_id == usuario_id,
+            PR_Usuario_base.estado == True
         ).first()
 
         if not usuario_db:
-            raise HTTPException(status_code=404, detail="usuario no encontrada")
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
         # Actualizar los campos proporcionados en la solicitud
         for field, value in usuarios.dict(exclude_unset=True).items():
             setattr(usuario_db, field, value)
 
-        # usuario_db. = datetime.now()
-        
         # Guardar los cambios en la base de datos
         db.commit()
         db.refresh(usuario_db)
@@ -451,25 +518,65 @@ def update_usuario(usuario_id: int, usuarios: PR_Usuario_model, db: Session = De
     except Exception as e:
         # En caso de errores, revertir los cambios y levantar una excepción HTTP
         db.rollback()
-        error_detail = {"error": "Error al actualizar Usuario", "error_message": str(e)}
+        error_detail = {"error": "Error al actualizar usuario", "error_message": str(e)}
         raise HTTPException(status_code=500, detail=error_detail)
 
     finally:
         # Cerrar la conexión a la base de datos al finalizar
         db.close()
 
-
-# ***** ELIMINAR USUARIO  **********
-@app_rout_usuarios.delete("/pi004TO1_usuarios_delete/{usuarios_id}", response_model=dict)
-def delete_usuario(usuarios_id: int, db: Session = Depends(get_db_user)):
-    usuario_de = db.query(PR_Usuario_base).filter(PR_Usuario_base.PR_Usu_in_id == usuarios_id).first()
-    if usuario_de:
-        
-        # usuario_de.usu_dt_fecdel_pers = datetime.now()
+# ***** ELIMINAR USUARIO **********
+@app_rout_usuarios.delete("/pi004TO1_usuarios_delete/{usuario_id}", response_model=dict)
+def delete_usuario(usuario_id: int, db: Session = Depends(get_db_user)):
+    usuario_db = db.query(PR_Usuario_base).filter(PR_Usuario_base.PR_Usu_in_id == usuario_id).first()
+    if usuario_db:
+        # Cambiar el estado del usuario a False en lugar de eliminar físicamente
+        usuario_db.estado = False
         db.commit()
-        return {"message": "usuario eliminada "}
-    raise HTTPException(status_code=404, detail="usuario no encontrada")
+        return {"message": "Usuario eliminado"}
+    raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+#**********************LISTA DE USUARIOS INACTIVOS***************
+@app_rout_usuarios.get("/usuario_listget_inactive/", response_model=List[PR_Usuario_model])
+async def list_usuarios_inactive(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
+    try:
+        # Consulta para obtener usuarios con estado inactivo (estado == 0)
+        usuarios = (
+            db.query(PR_Usuario_base)
+            .filter(PR_Usuario_base.estado == 0)
+            .order_by(PR_Usuario_base.PR_Usu_in_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        return usuarios
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+    finally:
+        db.close()
+        
+#********************* ACTUALIZAR ESTADO**************
+@app_rout_usuarios.put("/usuario_update_estado/", response_model=dict)
+async def update_usuarios_estado(usuarios_ids: List[int], db: Session = Depends(get_db_user)):
+    try:
+        # Actualizar estado y fecha de actualización
+        db.execute(
+            update(PR_Usuario_base)
+            .filter(PR_Usuario_base.PR_Usu_in_id.in_(usuarios_ids))
+            .values(estado=1, date_update=datetime.now())
+        )
+
+        db.commit()
+        return {"message": "Estado de usuarios actualizado"}
+
+    except Exception as e:
+        db.rollback()
+        error_detail = {"error": "Error al actualizar el estado de usuarios", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
+
+    finally:
+        db.close()
 # ----------------------------------------------------------
 
 # ***** CREAR ROL  **********
@@ -522,6 +629,7 @@ def get_rol(rol_id: int, db: Session = Depends(get_db_user)):
         raise HTTPException(status_code=404, detail="Rol no encontrado")
     return rol
         
+
         
 @app_rout_rol.get("/roles_listget/", response_model=List[PR_Rol_model])
 async def list_rol(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
