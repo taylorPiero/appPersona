@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
-from .routers.appT01Persona import appTO1_rout_personas as apiT01_personas, app_rout_usuarios, app_rout_rol, appgestion
+from .routers.appT01Persona import appTO1_rout_personas as apiT01_personas, app_rout_usuarios, app_rout_rol, app_rout_grupo, appgestion
 from .routers.login import logins
 from .routers.email import app_email
 from spyne import Application, rpc, ServiceBase, Unicode, AnyDict, Fault
@@ -60,3 +60,5 @@ app.include_router(appgestion)
 app.include_router(apiT01_personas)
 app.include_router(app_rout_usuarios)
 app.include_router(app_rout_rol)
+app.include_router(app_rout_grupo)
+

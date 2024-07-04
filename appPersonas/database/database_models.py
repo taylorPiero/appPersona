@@ -24,6 +24,7 @@ class PR_Persona_base(Base):
     date_create = Column(DateTime, nullable=False)
     date_update = Column(DateTime, nullable=False)
     date_delete = Column(DateTime)
+    PR_grupo_id_fk = Column(Integer)  # Referencia al grupo
     per_detalle_persona = relationship("PR_Detalle_Persona_base", backref="PR_Persona_base",uselist=False)
 
     

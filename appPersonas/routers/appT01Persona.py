@@ -55,10 +55,22 @@ def get_db_user():
         yield db
     finally:
         db.close()
- 
+
+SessionLocal_grup = sessionmaker(autocommit=False, autoflush=False, bind=engines['grupos'])
+
+def get_db_grup():
+    db = SessionLocal_grup()
+    try:
+        yield db
+    finally:
+        db.close()    
+
+        
+
 appTO1_rout_personas = APIRouter()
 app_rout_usuarios = APIRouter()
 app_rout_rol = APIRouter()
+app_rout_grupo = APIRouter()
 appgestion = APIRouter()
 
 
@@ -129,13 +141,13 @@ async def incoming_messages(request: Request) -> str:  # Cambio: str como tipo d
 
 
 # }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+
 # sms
 
-
 # Credenciales de Twilio (reemplaza con tus datos)
-account_sid = "AC5e3c38947ce0875326f782aa231d9428"
-auth_token = "b86a78c0ff515e173c951d985bd829b3"
-twilio_phone_number = "+15673473872"
+account_sid = "AC38ebd1270f9b5f3014bbf31c066e0666"
+auth_token = "67b1da453a3a73121f36b72043f7b27c"
+twilio_phone_number = "+19253579993"
 
 # Cliente de Twilio
 client = Client(account_sid, auth_token)
@@ -145,9 +157,7 @@ class SMSData(BaseModel):
     recipients: List[int] | None = None
     message: str
 
-
 # Ruta para enviar el SMS
-
 @appgestion.post("/send_sms/")
 async def send_sms(sms_data: SMSData, db: Session = Depends(get_db_pers)):
     recipients = sms_data.recipients  # Lista de IDs de personas a quienes enviar el SMS
@@ -160,7 +170,7 @@ async def send_sms(sms_data: SMSData, db: Session = Depends(get_db_pers)):
     )
 
     if not phone_numbers:
-        raise HTTPException(status_code=404, detail="No recipients found.")
+        raise HTTPException(status_code=404, detail="No se encontraron Contactos.")
 
     # Enviar SMS a cada número de teléfono
     for phone_number, in phone_numbers:  # Desempaquetamos la tupla (phone_number,)
@@ -170,12 +180,11 @@ async def send_sms(sms_data: SMSData, db: Session = Depends(get_db_pers)):
                 from_=twilio_phone_number,
                 to=phone_number 
             )
-            print(f"SMS sent to {phone_number}: {message.sid}")
-        except TwilioRestException as e:
+            print(f"SMS enviado a {phone_number}: {message.sid}")
+        except Exception as e:
             print(f"Error sending to {phone_number}: {e}")
 
-    return {"message": f"SMS messages sent to {len(phone_numbers)} recipients."}
-
+    return {"message": f"Mensaje SMS enviados a {len(phone_numbers)} contacto."}
 # }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 
 
@@ -421,6 +430,7 @@ def delete_persona_detalle(detalle_id: int, db: Session = Depends(get_db_pers)):
     finally:
         db.close()
 
+
 #---- Usuario---
 
 # ***** LISTADO POR ID **********
@@ -628,9 +638,7 @@ def get_rol(rol_id: int, db: Session = Depends(get_db_user)):
     if not rol:
         raise HTTPException(status_code=404, detail="Rol no encontrado")
     return rol
-        
-
-        
+              
 @app_rout_rol.get("/roles_listget/", response_model=List[PR_Rol_model])
 async def list_rol(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_user)):
     try:
@@ -725,4 +733,94 @@ def update_perfil(perfil_id: int, perfiles: PR_Perfil_model, db: Session = Depen
 
     finally:
         # Cerrar la conexión a la base de datos al finalizar
+        db.close()
+        
+                
+############## GRUPOS ###################
+
+@app_rout_grupo.get("/grupos_list_id/{grupos_id}", response_model=PR_grupos_model)
+def get_grupo(grupos_id: int, db: Session = Depends(get_db_grup)):
+    grupo = db.query(PR_grupos_base).filter(PR_grupos_base.PR_Gru_ch_nomb  == grupos_id).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="grupo no encontrado")
+    return grupo
+
+@app_rout_grupo.get("/grupos_listget/", response_model=List[PR_grupos_model])
+async def list_grupos(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_grup)):
+    try:
+        grupos = db.query(PR_grupos_base).order_by(PR_grupos_base.PR_Gru_id).offset(skip).limit(limit).all()
+        return grupos
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+    finally:
+        db.close()
+
+@app_rout_grupo.post("/grupos_add/", response_model=PR_grupos_model)
+def api30a_alerv_add(grupo: PR_grupos_model, db: Session = Depends(get_db_grup)):
+    try:
+        grupo_db = PR_grupos_base(**grupo.dict())
+        db.add(grupo_db)
+        db.commit()
+        db.refresh(grupo_db)
+        return grupo_db
+    except Exception as e:
+        error_detail = {"error": "Error al agregar rol", "error_message": str(e)}
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
+
+@app_rout_grupo.put("/grupos_update/{grupos_id}", response_model=PR_grupos_model)
+def update_grupo(grupos_id: int, grupos: PR_grupos_model, db: Session = Depends(get_db_grup)):
+    try:
+        grupo_db = db.query(PR_grupos_base).filter(PR_grupos_base.PR_Gru_id == grupos_id).first()
+        if not grupo_db:
+            raise HTTPException(status_code=404, detail="grupo no encontrada")
+
+        for field, value in grupos.dict(exclude_unset=True).items():
+            setattr(grupo_db, field, value)
+
+        db.commit()
+        db.refresh(grupo_db)
+        return grupo_db
+    except Exception as e:
+        db.rollback()
+        error_detail = {"error": "Error al actualizar Usuario", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
+    finally:
+        db.close()
+
+@app_rout_grupo.delete("/grupos_delete/{grupos_id}", response_model=dict)
+def delete_grupo(grupos_id: int, db: Session = Depends(get_db_grup)):
+    try:
+        grupo_db = db.query(PR_grupos_base).filter(PR_grupos_base.PR_Gru_id == grupos_id).first()
+        if not grupo_db:
+            raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+        grupo_db.estado = False
+        grupo_db.date_delete = datetime.now()
+        db.commit()
+        return {"message": "Grupo eliminado"}
+    except Exception as e:
+        db.rollback()
+        error_detail = {"error": "Error al eliminar Grupo", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
+    finally:
+        db.close()
+    try:
+        grupo_db = db.query(PR_grupos_base).filter(
+            PR_grupos_base.PR_Gru_id == grupos_id,
+            # PR_grupos_base.estado == True
+        ).first()
+
+        if not grupo_db:
+            raise HTTPException(status_code=404, detail="Grupo no encontrada")
+
+        grupo_db.estado = False
+        grupo_db.date_delete = datetime.now()
+        db.commit()
+        return {"message": "Grupo eliminado"}
+    except Exception as e:
+        db.rollback()
+        error_detail = {"error": "Error al eliminar Grupo", "error_message": str(e)}
+        raise HTTPException(status_code=500, detail=error_detail)
+    finally:
         db.close()

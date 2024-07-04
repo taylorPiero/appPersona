@@ -46,6 +46,7 @@ CREATE TABLE PR_Persona (
     date_create DATETIME NOT NULL,
     date_update DATETIME NOT NULL,
     date_delete DATETIME,
+    PR_grupo_id_fk INT
 	--FK_PR_Detal_Pers INT FOREIGN KEY REFERENCES PR_Detalle_Persona(PR_DetP_id),
 );
 

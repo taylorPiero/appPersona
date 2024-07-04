@@ -22,11 +22,11 @@ class PR_Persona_model(BaseModel):
     PR_Per_ch_apePat: str | None = None
     PR_Per_dt_nac: date | None = None
     PR_Per_ch_doc: str | None = None
-    # FK_PR_Detal_Pers: int | None = None
-    # FK_PR_Paramet_Pers: int | None = None
+    PR_grupo_id_fk: int |None = None
+    
     
 class PR_Detalle_Persona_model(BaseModel):
-
+    PR_DetP_id: int | None = None
     PR_DetP_ch_tel: str | None = None
     PR_DetP_ch_email: str | None = None
     PR_DetP_ch_sexo: str | None = None
@@ -41,9 +41,11 @@ class PR_Parametro_Persona_model(BaseModel):
 
 # Modelo para DB_PRACTICAS_USUARIO
 class PR_Rol_model(BaseModel):
+    PR_Usu_rol_id:int | None = None
     PR_Usu_rol_ch_nomb: str | None = None
 
 class PR_Perfil_model(BaseModel):
+    PR_Usu_perf_id: int | None = None
     PR_Usu_perf_ch_nomb: str | None = None
 
 class PR_Usuario_model(BaseModel):
@@ -56,7 +58,7 @@ class PR_Usuario_model(BaseModel):
 # Modelo para DB_PRACTICAS_GRUPOS
 class PR_grupos_model(BaseModel):
     PR_Gru_ch_nomb: str | None = None
-    PR_Gru_per_fk: str | None = None
+    PR_Gru_per_fk: int | None = None
 
 class PR_segmentos_model(BaseModel):
     PR_Seg_ch_nomb: str | None = None
@@ -80,3 +82,7 @@ class Pr_Archivos_model(BaseModel):
 class login_bm(BaseModel):
     email: str | None = None
     passs: str | None = None
+    
+# class PersonNamePhone_model(BaseModel):
+#     nombre: str |None = None
+#     telefono: str |None = None
