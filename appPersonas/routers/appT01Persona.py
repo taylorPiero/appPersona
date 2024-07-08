@@ -13,7 +13,7 @@ from appPersonas.config.db import engines
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from appPersonas.database.database_models import PR_Persona_base, PR_Detalle_Persona_base, PR_Parametro_Persona_base, PR_Rol_base, PR_Perfil_base, PR_Usuario_base, PR_grupos_base, PR_segmentos_base, PR_TMensaje_base, PR_DetalleMensaje_base, Pr_Archivos_base
-from appPersonas.database.models import PR_Persona_model, PR_Detalle_Persona_model, PR_Parametro_Persona_model, PR_Rol_model, PR_Perfil_model, PR_Usuario_model, PR_grupos_model, PR_segmentos_model, PR_TMensaje_model, PR_DetalleMensaje_model, Pr_Archivos_model,login_bm,TokenData
+from appPersonas.database.models import PR_Persona_model, PR_Detalle_Persona_model, PR_Detalle_Persona_model1, PR_Parametro_Persona_model, PR_Rol_model, PR_Perfil_model, PR_Usuario_model, PR_grupos_model, PR_segmentos_model, PR_TMensaje_model, PR_DetalleMensaje_model, Pr_Archivos_model,login_bm,TokenData
 from appPersonas.database.crud import get_usuario_by_email
 import telegram
 import os
@@ -32,7 +32,7 @@ from twilio.request_validator import RequestValidator
 from telegram.constants import ParseMode
 from telegram.ext import Updater,ApplicationBuilder
 
-
+from twilio.base.exceptions import TwilioException
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
 from fastapi.templating import Jinja2Templates
@@ -80,40 +80,119 @@ appgestion = APIRouter()
 
 # load_dotenv()  # Cargar variables de entorno desde .env
 
+# Configurar las credenciales de Twilio (reemplaza con tus propias credenciales)
+TWILIO_ACCOUNT_SID = 'AC38ebd1270f9b5f3014bbf31c066e0666'
+TWILIO_AUTH_TOKEN = '67b1da453a3a73121f36b72043f7b27c'
+TWILIO_PHONE_NUMBER = 'whatsapp:+14155238886'
 
-# Credenciales de Twilio (deben estar en tu archivo .env)
-TWILIO_ACCOUNT_SID = 'ACca03a3c9d31e0a6d05b196d75a97d3fb'
-TWILIO_AUTH_TOKEN = 'b139d0a41bd657ba19429b8acd7a0e32'
-TWILIO_PHONE_NUMBER = 'whatsapp:+14155238886'  # Reemplaza con tu número de WhatsApp de Twilio
-                                
-# Validador de solicitudes de Twilio (opcional, pero recomendado)
-request_validator = RequestValidator(TWILIO_AUTH_TOKEN)
+# Validar que las credenciales de Twilio están configuradas correctamente
+if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER]):
+    raise EnvironmentError("Las credenciales de Twilio no están configuradas correctamente.")
+
+# Crear una instancia del cliente Twilio
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # Modelo Pydantic para la solicitud de envío de mensajes
 class WhatsAppMessage(BaseModel):
-    phone_numbers: list[str] = Field(..., description="Lista de números de teléfono (con código de país)")
-    message: str = Field(..., description="Mensaje a enviar")
+    recipients: List[int] | None = None
+    message: str
 
-# ... (otras importaciones)
 
-@appgestion.post("/send_whatsapp_message")
-async def send_whatsapp_message(message_data: WhatsAppMessage):
-    client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+# API de mensajes de WhatsApp
+@appgestion.post("/api/send-whatsapp/")
+async def send_whatsapp(contact_data: WhatsAppMessage, db: Session = Depends(get_db_pers)):
+    recipients = contact_data.recipients  # Lista de IDs de personas a quienes enviar el mensaje
 
-    for phone_number in message_data.phone_numbers:
-        try:
-            message = client.messages.create(
-                from_=TWILIO_PHONE_NUMBER,  # Asegúrate de que el formato sea correcto
-                body=message_data.message,
+    # Consulta para obtener los números de teléfono de los destinatarios
+    phone_numbers = (
+        db.query(PR_Detalle_Persona_base.PR_DetP_ch_tel)
+        .filter(PR_Detalle_Persona_base.PR_DetP_id.in_(recipients))
+        .all()
+    )
+
+    if not phone_numbers:
+        raise HTTPException(status_code=404, detail="No se encontraron Contactos.")
+
+    try:
+        for phone_number, in phone_numbers:  # Desempaquetamos la tupla (phone_number,)
+            if not phone_number.startswith('+'):
+                phone_number = '+51' + phone_number
+            
+            # Enviar el mensaje de WhatsApp utilizando Twilio
+            whatsapp_message = client.messages.create(
+                from_=TWILIO_PHONE_NUMBER,
+                body=contact_data.message,
                 to=f"whatsapp:{phone_number}"
             )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al enviar mensaje a {phone_number}: {e}")
+            
+    except TwilioException as e:
+        db.rollback()  # Realiza un rollback explícito si ocurre un error
+        raise HTTPException(status_code=500, detail=f"Error al enviar mensaje de WhatsApp: {str(e)}")
 
-    return {"message": f"Mensajes enviados exitosamente a {len(message_data.phone_numbers)} números"}
+    finally:
+        db.close()  # Asegúrate de cerrar la sesión de la base de datos correctamente
+
+    return {"status": "success", "message": "Mensajes de WhatsApp enviados exitosamente"}
 
 
 
+# # Instanciar la aplicación FastAPI
+# app = FastAPI()
+
+# # Modelo Pydantic para la solicitud de envío de mensajes
+# class WhatsAppMessage(BaseModel):
+#     phone_numbers: list[str] = Field(..., description="Lista de números de teléfono (sin código de país)")
+#     message: str = Field(..., description="Mensaje a enviar")
+
+# # Ruta para enviar mensajes de WhatsApp a múltiples números
+# @appgestion.post("/api/01/send-whatsapp")
+# async def send_whatsapp_message(message_data: WhatsAppMessage):
+#     try:
+#         for phone_number in message_data.phone_numbers:
+            
+#             if not phone_number.startswith('+'):
+#                 phone_number = '+51' + phone_number
+            
+#             # Enviar el mensaje utilizando Twilio
+#             message = client.messages.create(
+#                 from_=TWILIO_PHONE_NUMBER,
+#                 body=message_data.message,
+#                 to=f"whatsapp:{phone_number}"
+#             )
+#     except TwilioException as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+#     return {"status": "success", "message": "Mensajes enviados exitosamente"}
+
+###################################################33
+#########OTRO METODO PARA ENVIAR WHATSAPP #########
+
+import urllib.parse
+import webbrowser
+import time
+import pyautogui
+
+
+class WhatsAppMessage(BaseModel):
+    phone_numbers: list[str]
+    message: str
+
+def enviar_mensaje_whatsapp(telefono, texto):
+    mensaje = f"https://api.whatsapp.com/send?phone={telefono}&text={urllib.parse.quote(texto)}"
+    webbrowser.open(mensaje)
+    time.sleep(10)
+    pyautogui.press('enter')
+
+@appgestion.post("/otra-forma-send-whatsapp")
+async def send_whatsapp_message(message_data: WhatsAppMessage):
+    try:
+        for phone_number in message_data.phone_numbers:
+            enviar_mensaje_whatsapp(phone_number, message_data.message)
+        return {"status": "success", "message": "Mensajes enviados exitosamente"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+##//////////////////////// messenger////////////////
 @appgestion.post("/incoming-messages")
 async def incoming_messages(request: Request) -> str:  # Cambio: str como tipo de retorno
     # Validar la solicitud de Twilio (opcional)
@@ -212,7 +291,7 @@ def read_persona_by_id(personas_id: int, db: Session = Depends(get_db_pers)):
         raise HTTPException(status_code=404, detail="Persona no encontrada")
     return persona
 
-@appTO1_rout_personas.get("/pi001TO1_personasdetalle_list_id/{detalle_id}", response_model=List[PR_Detalle_Persona_model])
+@appTO1_rout_personas.get("/pi001TO1_personasdetalle_list_id/{detalle_id}", response_model=List[PR_Detalle_Persona_model1])
 def read_persona_detalle_by_id(detalle_id: int, db: Session = Depends(get_db_pers)):
     detalles = db.query(PR_Detalle_Persona_base).filter(
         PR_Detalle_Persona_base.FK_PR_Pers == detalle_id, 
@@ -236,16 +315,21 @@ async def list_personas(skip: int = 0, limit: int = 10, db: Session = Depends(ge
     finally:
         db.close()
 
-@appTO1_rout_personas.get("/pi002TO1_personasdetalle_listget/", response_model=List[PR_Detalle_Persona_model])
+@appTO1_rout_personas.get("/pi002TO1_personasdetalle_listget/", response_model=List[PR_Detalle_Persona_model1])
 async def list_personas_detalle(skip: int = 0, limit: int = 10, db: Session = Depends(get_db_pers)):
     try:
-        detalles = db.query(PR_Detalle_Persona_base).filter(
+        detalles = db.query(PR_Detalle_Persona_base).options(
+            joinedload(PR_Detalle_Persona_base.per_persona)
+        ).filter(
             PR_Detalle_Persona_base.estado == True
         ).order_by(PR_Detalle_Persona_base.PR_DetP_id).offset(skip).limit(limit).all()
+
         return detalles
+    
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error en el servidor: {str(e)}")
+    
     finally:
         db.close()
 
@@ -467,6 +551,7 @@ class User(BaseModel):
 
 # Nuevo endpoint para agregar usuarios
 # ***** AGREGAR USUARIO **********
+## , current_user: User = Depends(get_current_user) ----- seguridad para crear usuario
 @app_rout_usuarios.post("/pi003TO1_usuario_add/")
 def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_db_user), current_user: User = Depends(get_current_user)):
     try:
@@ -499,6 +584,26 @@ def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_db_use
         error_detail = {"error": "Error al agregar usuario", "error_message": str(e)}
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
     
+
+## API  para crear usuario ####
+@app_rout_usuarios.post("/pi003TO1_usuario_add_sin_token/")
+def api30a_alerv_add(usuario: PR_Usuario_model, db: Session = Depends(get_db_user)):
+    try:
+        hashed_password = pwd_context.hash(usuario.PR_Usu_ch_pass)
+        usuario.PR_Usu_ch_pass = hashed_password
+
+        usuario_db = PR_Usuario_base(**usuario.dict())
+        db.add(usuario_db)
+        db.commit()
+        db.refresh(usuario_db)
+
+        return usuario_db
+
+    except Exception as e:
+        error_detail = {"error": "Error al agregar usuario", "error_message": str(e)}
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=error_detail)
+    
+#######
 
 from fastapi import HTTPException
 
@@ -574,7 +679,7 @@ async def update_usuarios_estado(usuarios_ids: List[int], db: Session = Depends(
         db.execute(
             update(PR_Usuario_base)
             .filter(PR_Usuario_base.PR_Usu_in_id.in_(usuarios_ids))
-            .values(estado=1, date_update=datetime.now())
+            .values(estado=1)
         )
 
         db.commit()

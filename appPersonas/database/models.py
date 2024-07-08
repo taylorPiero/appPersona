@@ -32,6 +32,16 @@ class PR_Detalle_Persona_model(BaseModel):
     PR_DetP_ch_sexo: str | None = None
     FK_PR_Pers: int | None = None
     FK_PR_Paramet_Pers: int | None = None
+    # per_persona: Optional[PR_Persona_model] = None
+    
+class PR_Detalle_Persona_model1(BaseModel):
+    PR_DetP_id: int | None = None
+    PR_DetP_ch_tel: str | None = None
+    PR_DetP_ch_email: str | None = None
+    PR_DetP_ch_sexo: str | None = None
+    FK_PR_Pers: int | None = None
+    FK_PR_Paramet_Pers: int | None = None
+    per_persona: Optional[PR_Persona_model] = None
 
 
 class PR_Parametro_Persona_model(BaseModel):
@@ -49,6 +59,7 @@ class PR_Perfil_model(BaseModel):
     PR_Usu_perf_ch_nomb: str | None = None
 
 class PR_Usuario_model(BaseModel):
+    PR_Usu_in_id: int | None = None
     PR_Usu_ch_nomb: str | None = None
     PR_Usu_ch_pass: str | None = None
     PR_Usu_perid_fk: int | None = None
